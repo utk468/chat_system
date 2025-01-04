@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles/style.css">
+  <title>Chat</title>
+</head>
+<body>
+  <div class="chat-container">
+    <div id="messages"></div>
+    <form id="message-form">
+      <input type="text" id="message-input" placeholder="Type a message..." />
+      <button type="submit" id="send-btn">Send</button>
+    </form>
+    <form id="image-form" enctype="multipart/form-data">
+      <input type="file" id="image-input" />
+      <button type="submit">Upload Image</button>
+    </form>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    // Load previous messages
+    socket.on('previous_messages', (messages) => {
+      const messagesContainer = document.getElementById('messages');
+      messages.forEach((msg) => {
+        const messageElem = document.createElement('div');
+        if (msg.type === 'text') {
+          messageElem.textContent = `${msg.sender}: ${msg.content}`;
+        } else if (msg.type === 'image') {
+          const img = document.createElement('img');
+          img.src = msg.content;
+          messageElem.appendChild(img);
+        }
+        messagesContainer.appendChild(messageElem);
+      });
+    });
+
+    // New message from server
+    socket.on('new_message', (msg) => {
+      const messagesContainer = document.getElementById('messages');
+      const messageElem = document.createElement('div');
+      if (msg.type === 'text') {
+        messageElem.textContent = `${msg.sender}: ${msg.content}`;
+      } else if (msg.type === 'image') {
+        const img = document.createElement('img');
+        img.src = msg.content;
+        messageElem.appendChild(img);
+      }
+      messagesContainer.appendChild(messageElem);
+    });
+
+    // Send text message
+    document.getElementById('message-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('message-input');
+      const content = input.value;
+      socket.emit('send_message', { sender: 'User', content });
+      input.value = '';
+    });
+
+    // Upload image
+    document.getElementById('image-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('image-input');
+      const formData = new FormData();
+      formData.append('image', input.files[0]);
+      formData.append('sender', 'User');
+      await fetch('/upload', { method: 'POST', body: formData });
+      input.value = '';
+    });
+  </script>
+</body>
+</html>
