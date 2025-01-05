@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles/style.css">
+  <title>Chat</title>
+</head>
+<body>
+  <div class="chat-container">
+    
+    <div class="chat-header">
+      <p id="user-display"></p> 
+    </div>
+
+    <div id="messages"></div>
+
+    <form id="message-form" enctype="multipart/form-data">
+      <input type="text" id="message-input" placeholder="Type a message..." />
+      <input type="file" id="image-input" />
+      <button type="submit" id="send-btn">Send</button>
+    </form>
+
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+
+    const socket = io();
+
+    
+    const loggedInUser = localStorage.getItem('loggedInUser');
+    if (loggedInUser) {
+      document.getElementById('user-display').textContent = `Logged in as: ${loggedInUser}`;
+    } else {
+      alert('You must log in first!');
+      window.location.href = '/';
+    }
+
+    
+    socket.on('previous_messages', (messages) => {
+      const messagesContainer = document.getElementById('messages');
+      messages.forEach((msg) => {
+        const messageElem = document.createElement('div');
+        const timestamp = new Date(msg.timestamp).toLocaleString();
+        if (msg.type === 'text') {
+          messageElem.textContent = `[${timestamp}] ${msg.sender}: ${msg.content}`;
+        } else if (msg.type === 'image' || msg.type === 'text_image') {
+          const img = document.createElement('img');
+          img.src = msg.image; 
+          img.alt = 'Image message';
+          img.style.maxWidth = '200px'; 
+          img.style.display = 'block';
+          messageElem.innerHTML = `[${timestamp}] ${msg.sender}: ${msg.content}`;
+          messageElem.appendChild(img);
+        }
+        messagesContainer.appendChild(messageElem);
+      });
+    });
+
+  
+
+
+    socket.on('new_message', (msg) => {
+      const messagesContainer = document.getElementById('messages');
+      const messageElem = document.createElement('div');
+      const timestamp = new Date(msg.timestamp).toLocaleString();
+      if (msg.type === 'text') {
+        messageElem.textContent = `[${timestamp}] ${msg.sender}: ${msg.content}`;
+      } else if (msg.type === 'image' || msg.type === 'text_image') {
+        const img = document.createElement('img');
+        img.src = msg.image; 
+        img.alt = 'Image message';
+        img.style.maxWidth = '200px'; 
+        img.style.display = 'block';
+        messageElem.innerHTML = `[${timestamp}] ${msg.sender}: ${msg.content}`;
+        messageElem.appendChild(img);
+      }
+      messagesContainer.appendChild(messageElem);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    });
+
+    
+
+
+    document.getElementById('message-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const textInput = document.getElementById('message-input').value.trim();
+      const imageInput = document.getElementById('image-input').files[0];
+
+      if (textInput || imageInput) {
+        const formData = new FormData();
+        if (textInput) formData.append('content', textInput);
+        if (imageInput) formData.append('image', imageInput);
+        formData.append('sender', loggedInUser || 'User');
+
+        const response = await fetch('/send', { method: 'POST', body: formData });
+        if (response.ok) {
+          document.getElementById('message-input').value = '';
+          document.getElementById('image-input').value = '';
+        }
+      } else {
+        alert('Please type a message or select an image to send.');
+      }
+    });
+
+    
+  </script>
+</body>
+</html>
